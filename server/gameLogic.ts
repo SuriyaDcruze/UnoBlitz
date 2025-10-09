@@ -41,6 +41,7 @@ export interface GameState {
   gameEnded: boolean;
   winner?: string;
   mustDrawCount: number; // For stacking draw cards
+  createdAt: number;
 }
 
 export class UnoGame {
@@ -57,7 +58,8 @@ export class UnoGame {
       currentColor: CardColor.RED,
       gameStarted: false,
       gameEnded: false,
-      mustDrawCount: 0
+      mustDrawCount: 0,
+      createdAt: Date.now()
     };
   }
 

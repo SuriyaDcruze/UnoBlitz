@@ -1,5 +1,6 @@
 import { Server as SocketIOServer, Socket } from "socket.io";
 import { UnoGame, CardColor } from "./gameLogic";
+import { saveMatchResult, type MatchResult } from "./statsService";
 
 interface GameRoom {
   game: UnoGame;
@@ -132,10 +133,27 @@ export function setupSocketHandlers(io: SocketIOServer): void {
         });
 
         if (result.message === "Game won!") {
+          const finalGameState = room.game.getGameState();
           io.to(roomId).emit("game_ended", { 
             winner: socket.id,
-            gameState: room.game.getGameState() 
+            gameState: finalGameState 
           });
+
+          // Save match result to database
+          const matchResult: MatchResult = {
+            roomId,
+            players: finalGameState.players.map(p => ({
+              id: p.id,
+              name: p.name,
+              finalCardCount: p.hand.length
+            })),
+            winnerId: socket.id,
+            winnerName: finalGameState.players.find(p => p.id === socket.id)?.name || "Unknown",
+            duration: Math.floor((Date.now() - finalGameState.createdAt) / 1000)
+          };
+          saveMatchResult(matchResult).catch(err => 
+            console.error('Failed to save match result:', err)
+          );
         }
       } catch (error) {
         socket.emit("error", { message: "Failed to play card" });

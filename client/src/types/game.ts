@@ -42,4 +42,5 @@ export interface GameState {
   gameEnded: boolean;
   winner?: string;
   mustDrawCount: number;
+  createdAt: number;
 }

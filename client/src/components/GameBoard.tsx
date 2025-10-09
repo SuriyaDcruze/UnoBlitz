@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useGameStore } from '@/lib/stores/useGameStore';
+import { useAudio } from '@/lib/stores/useAudio';
 import { socketService } from '@/lib/socket';
 import { GameLobby } from './GameLobby';
 import { PlayerHand } from './PlayerHand';
@@ -27,6 +28,24 @@ export const GameBoard: React.FC = () => {
     callUno
   } = useGameStore();
 
+  const {
+    setHitSound,
+    setSuccessSound,
+    playHit,
+    playSuccess,
+    toggleMute,
+    isMuted
+  } = useAudio();
+
+  // Initialize audio
+  useEffect(() => {
+    const hitAudio = new Audio('/sounds/hit.mp3');
+    const successAudio = new Audio('/sounds/success.mp3');
+    
+    setHitSound(hitAudio);
+    setSuccessSound(successAudio);
+  }, [setHitSound, setSuccessSound]);
+
   useEffect(() => {
     const socket = socketService.connect();
 
@@ -45,6 +64,7 @@ export const GameBoard: React.FC = () => {
       setCurrentRoomId(roomId);
       setGameState(newGameState);
       setError(null);
+      playSuccess();
       toast.success('Room created successfully!');
     });
 
@@ -53,35 +73,46 @@ export const GameBoard: React.FC = () => {
       setCurrentRoomId(roomId);
       setGameState(newGameState);
       setError(null);
+      playHit();
       toast.success('Joined room successfully!');
     });
 
     socket.on('game_started', ({ gameState: newGameState }) => {
       console.log('Game started');
       setGameState(newGameState);
+      playSuccess();
       toast.success('Game started!');
     });
 
     socket.on('game_updated', ({ gameState: newGameState }) => {
       console.log('Game updated');
+      const previousState = gameState;
       setGameState(newGameState);
+      
+      // Play sound if a card was played (discard pile changed)
+      if (previousState && newGameState.discardPile.length > previousState.discardPile.length) {
+        playHit();
+      }
     });
 
     socket.on('game_ended', ({ winner, gameState: newGameState }) => {
       console.log('Game ended, winner:', winner);
       setGameState(newGameState);
       const winnerName = newGameState.players.find((p: any) => p.id === winner)?.name || 'Unknown';
+      playSuccess();
       toast.success(`Game Over! ${winnerName} wins!`);
     });
 
     socket.on('uno_called', ({ playerId }) => {
       const player = gameState?.players.find((p: any) => p.id === playerId);
       if (player) {
+        playSuccess();
         toast.info(`${player.name} called UNO!`);
       }
     });
 
     socket.on('cards_drawn', ({ cards }) => {
+      playHit();
       toast.info(`Drew ${cards.length} card${cards.length > 1 ? 's' : ''}`);
     });
 
@@ -103,7 +134,7 @@ export const GameBoard: React.FC = () => {
       socket.off('cards_drawn');
       socket.off('error');
     };
-  }, [setGameState, setCurrentRoomId, setConnected, setError, gameState]);
+  }, [setGameState, setCurrentRoomId, setConnected, setError, gameState, playHit, playSuccess]);
 
   const currentPlayerId = socketService.getSocket()?.id || null;
   const currentPlayer = gameState?.players.find(p => p.id === currentPlayerId);

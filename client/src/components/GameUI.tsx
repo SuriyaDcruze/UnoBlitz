@@ -2,6 +2,9 @@ import React from 'react';
 import { GameState, CardColor, UnoCard } from '@/types/game';
 import { Card } from './Card';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Volume2, VolumeX } from 'lucide-react';
+import { useAudio } from '@/lib/stores/useAudio';
 
 interface GameUIProps {
   gameState: GameState;
@@ -11,6 +14,7 @@ interface GameUIProps {
 export const GameUI: React.FC<GameUIProps> = ({ gameState, currentPlayerId }) => {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const topCard = gameState.discardPile[gameState.discardPile.length - 1];
+  const { isMuted, toggleMute } = useAudio();
 
   const getColorIndicator = (color: CardColor) => {
     const colorClasses = {
@@ -28,6 +32,16 @@ export const GameUI: React.FC<GameUIProps> = ({ gameState, currentPlayerId }) =>
 
   return (
     <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
+      {/* Sound toggle */}
+      <Button
+        onClick={toggleMute}
+        variant="outline"
+        size="icon"
+        className="pointer-events-auto bg-white/90 backdrop-blur-sm hover:bg-white/80"
+      >
+        {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+      </Button>
+
       {/* Game info */}
       <div className="bg-white/90 backdrop-blur-sm rounded-lg p-4 shadow-lg pointer-events-auto">
         <div className="space-y-2">

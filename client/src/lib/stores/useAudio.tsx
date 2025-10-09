@@ -21,35 +21,32 @@ export const useAudio = create<AudioState>((set, get) => ({
   backgroundMusic: null,
   hitSound: null,
   successSound: null,
-  isMuted: true, // Start muted by default
+  isMuted: false, // Start unmuted by default
   
   setBackgroundMusic: (music) => set({ backgroundMusic: music }),
   setHitSound: (sound) => set({ hitSound: sound }),
   setSuccessSound: (sound) => set({ successSound: sound }),
   
   toggleMute: () => {
-    const { isMuted } = get();
+    const { isMuted, hitSound, successSound, backgroundMusic } = get();
     const newMutedState = !isMuted;
     
-    // Just update the muted state
-    set({ isMuted: newMutedState });
+    // Update muted state on all audio elements
+    if (hitSound) hitSound.muted = newMutedState;
+    if (successSound) successSound.muted = newMutedState;
+    if (backgroundMusic) backgroundMusic.muted = newMutedState;
     
-    // Log the change
+    set({ isMuted: newMutedState });
     console.log(`Sound ${newMutedState ? 'muted' : 'unmuted'}`);
   },
   
   playHit: () => {
     const { hitSound, isMuted } = get();
-    if (hitSound) {
-      // If sound is muted, don't play anything
-      if (isMuted) {
-        console.log("Hit sound skipped (muted)");
-        return;
-      }
-      
+    if (hitSound && !isMuted) {
       // Clone the sound to allow overlapping playback
       const soundClone = hitSound.cloneNode() as HTMLAudioElement;
       soundClone.volume = 0.3;
+      soundClone.muted = isMuted;
       soundClone.play().catch(error => {
         console.log("Hit sound play prevented:", error);
       });
@@ -58,14 +55,9 @@ export const useAudio = create<AudioState>((set, get) => ({
   
   playSuccess: () => {
     const { successSound, isMuted } = get();
-    if (successSound) {
-      // If sound is muted, don't play anything
-      if (isMuted) {
-        console.log("Success sound skipped (muted)");
-        return;
-      }
-      
+    if (successSound && !isMuted) {
       successSound.currentTime = 0;
+      successSound.muted = isMuted;
       successSound.play().catch(error => {
         console.log("Success sound play prevented:", error);
       });

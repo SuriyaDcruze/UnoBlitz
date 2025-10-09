@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { UnoCard, CardColor, CardType } from '@/types/game';
 import { cn } from '@/lib/utils';
 
@@ -65,13 +66,24 @@ export const Card: React.FC<CardProps> = ({
   };
 
   return (
-    <div
+    <motion.div
+      initial={{ scale: 0.8, opacity: 0, y: 20 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      exit={{ scale: 0.5, opacity: 0, y: -20 }}
+      whileHover={isPlayable ? { scale: 1.05, y: -5 } : {}}
+      whileTap={isPlayable ? { scale: 0.98 } : {}}
+      transition={{ 
+        type: "spring", 
+        stiffness: 400, 
+        damping: 25,
+        mass: 0.5
+      }}
       className={cn(
-        'relative rounded-lg border-2 cursor-pointer transition-all duration-200 flex flex-col items-center justify-center font-bold text-white shadow-lg',
+        'relative rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center font-bold text-white shadow-lg',
         colorClasses[card.color] || 'bg-gray-500 border-gray-600',
         sizeClasses[size],
-        isPlayable && 'hover:scale-105 hover:shadow-xl ring-2 ring-white ring-opacity-50',
-        isSelected && 'scale-105 ring-4 ring-blue-300',
+        isPlayable && 'hover:shadow-xl ring-2 ring-white ring-opacity-50',
+        isSelected && 'ring-4 ring-blue-300',
         !isPlayable && onClick && 'opacity-60 cursor-not-allowed'
       )}
       onClick={onClick}
@@ -91,6 +103,6 @@ export const Card: React.FC<CardProps> = ({
       <div className="absolute bottom-1 right-1 text-xs opacity-70 rotate-180">
         {card.type === CardType.NUMBER ? card.value : getCardContent()}
       </div>
-    </div>
+    </motion.div>
   );
 };

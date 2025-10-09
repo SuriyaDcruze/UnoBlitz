@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { UnoCard, CardColor, CardType } from '@/types/game';
 import { Card } from './Card';
 import { Button } from './ui/button';
@@ -86,16 +87,31 @@ export const PlayerHand: React.FC<PlayerHandProps> = ({
 
       {/* Player's hand */}
       <div className="flex flex-wrap gap-2 max-w-4xl justify-center">
-        {cards.map((card, index) => (
-          <Card
-            key={card.id}
-            card={card}
-            isPlayable={canPlayCard(card)}
-            isSelected={selectedCard?.id === card.id}
-            onClick={() => handleCardClick(card)}
-            size="medium"
-          />
-        ))}
+        <AnimatePresence mode="popLayout">
+          {cards.map((card, index) => (
+            <motion.div
+              key={card.id}
+              layout
+              initial={{ scale: 0.5, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: -30, transition: { duration: 0.2 } }}
+              transition={{ 
+                delay: index * 0.03,
+                type: "spring",
+                stiffness: 400,
+                damping: 30
+              }}
+            >
+              <Card
+                card={card}
+                isPlayable={canPlayCard(card)}
+                isSelected={selectedCard?.id === card.id}
+                onClick={() => handleCardClick(card)}
+                size="medium"
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       {/* Actions */}

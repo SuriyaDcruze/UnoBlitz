@@ -191,6 +191,7 @@ export class UnoGame {
 
     this.state.gameStarted = true;
     this.state.currentPlayerIndex = 0;
+    this.state.createdAt = Date.now(); // Reset timestamp when game actually starts
 
     return true;
   }

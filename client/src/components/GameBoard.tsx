@@ -5,6 +5,7 @@ import { socketService } from '@/lib/socket';
 import { GameLobby } from './GameLobby';
 import { PlayerHand } from './PlayerHand';
 import { GameUI } from './GameUI';
+import { Chat } from './Chat';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
@@ -16,16 +17,24 @@ export const GameBoard: React.FC = () => {
     playerName,
     isConnected,
     error,
+    chatMessages,
+    isSpectator,
+    spectatorCount,
     setGameState,
     setCurrentRoomId,
     setConnected,
     setError,
+    addChatMessage,
+    clearChatMessages,
+    setSpectatorCount,
     createRoom,
     joinRoom,
+    joinAsSpectator,
     startGame,
     playCard,
     drawCard,
-    callUno
+    callUno,
+    sendChatMessage
   } = useGameStore();
 
   const {
@@ -116,6 +125,22 @@ export const GameBoard: React.FC = () => {
       toast.info(`Drew ${cards.length} card${cards.length > 1 ? 's' : ''}`);
     });
 
+    socket.on('spectator_joined', ({ roomId, gameState: newGameState }) => {
+      console.log('Joined as spectator:', roomId);
+      setCurrentRoomId(roomId);
+      setGameState(newGameState);
+      setError(null);
+      toast.success('Joined as spectator');
+    });
+
+    socket.on('spectator_update', ({ spectatorCount }) => {
+      setSpectatorCount(spectatorCount);
+    });
+
+    socket.on('chat_message', ({ playerId, playerName, message, timestamp }) => {
+      addChatMessage({ playerId, playerName, message, timestamp });
+    });
+
     socket.on('error', ({ message }) => {
       console.error('Socket error:', message);
       setError(message);
@@ -132,13 +157,16 @@ export const GameBoard: React.FC = () => {
       socket.off('game_ended');
       socket.off('uno_called');
       socket.off('cards_drawn');
+      socket.off('spectator_joined');
+      socket.off('spectator_update');
+      socket.off('chat_message');
       socket.off('error');
     };
-  }, [setGameState, setCurrentRoomId, setConnected, setError, gameState, playHit, playSuccess]);
+  }, [setGameState, setCurrentRoomId, setConnected, setError, gameState, playHit, playSuccess, addChatMessage, setSpectatorCount]);
 
   const currentPlayerId = socketService.getSocket()?.id || null;
-  const currentPlayer = gameState?.players.find(p => p.id === currentPlayerId);
-  const isMyTurn = gameState?.players[gameState.currentPlayerIndex]?.id === currentPlayerId;
+  const currentPlayer = isSpectator ? null : gameState?.players.find(p => p.id === currentPlayerId);
+  const isMyTurn = !isSpectator && gameState?.players[gameState.currentPlayerIndex]?.id === currentPlayerId;
 
   // Connection status
   if (!isConnected) {
@@ -152,14 +180,15 @@ export const GameBoard: React.FC = () => {
     );
   }
 
-  // Show lobby if not in game
-  if (!gameState || !gameState.gameStarted) {
+  // Show lobby if not in game (unless spectating)
+  if (!gameState || (!gameState.gameStarted && !isSpectator)) {
     return (
       <GameLobby
         gameState={gameState}
         currentPlayerId={currentPlayerId}
         onCreateRoom={createRoom}
         onJoinRoom={joinRoom}
+        onJoinAsSpectator={joinAsSpectator}
         onStartGame={startGame}
       />
     );
@@ -198,9 +227,15 @@ export const GameBoard: React.FC = () => {
       {/* Game UI */}
       <GameUI gameState={gameState} currentPlayerId={currentPlayerId!} />
 
-      {/* Player's hand */}
+      {/* Player's hand or spectator indicator */}
       <div className="absolute bottom-4 left-4 right-4">
-        {currentPlayer && (
+        {isSpectator ? (
+          <div className="flex justify-center">
+            <div className="bg-white/90 backdrop-blur-sm rounded-lg px-6 py-3 shadow-lg">
+              <p className="text-gray-800 font-semibold">Spectating ({spectatorCount} spectator{spectatorCount !== 1 ? 's' : ''})</p>
+            </div>
+          </div>
+        ) : currentPlayer && (
           <PlayerHand
             cards={currentPlayer.hand}
             currentColor={gameState.currentColor}
@@ -213,6 +248,13 @@ export const GameBoard: React.FC = () => {
           />
         )}
       </div>
+
+      {/* Chat */}
+      <Chat
+        messages={chatMessages}
+        onSendMessage={sendChatMessage}
+        currentPlayerId={currentPlayerId!}
+      />
 
       {/* Error display */}
       {error && (

@@ -10,6 +10,7 @@ interface GameLobbyProps {
   currentPlayerId: string | null;
   onCreateRoom: (playerName: string, roomId: string) => void;
   onJoinRoom: (playerName: string, roomId: string) => void;
+  onJoinAsSpectator: (roomId: string) => void;
   onStartGame: () => void;
 }
 
@@ -18,11 +19,12 @@ export const GameLobby: React.FC<GameLobbyProps> = ({
   currentPlayerId,
   onCreateRoom,
   onJoinRoom,
+  onJoinAsSpectator,
   onStartGame
 }) => {
   const [playerName, setPlayerName] = useState('');
   const [roomId, setRoomId] = useState('');
-  const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
+  const [mode, setMode] = useState<'menu' | 'create' | 'join' | 'spectate'>('menu');
 
   const handleCreateRoom = () => {
     if (playerName.trim() && roomId.trim()) {
@@ -33,6 +35,12 @@ export const GameLobby: React.FC<GameLobbyProps> = ({
   const handleJoinRoom = () => {
     if (playerName.trim() && roomId.trim()) {
       onJoinRoom(playerName.trim(), roomId.trim());
+    }
+  };
+
+  const handleJoinAsSpectator = () => {
+    if (roomId.trim()) {
+      onJoinAsSpectator(roomId.trim());
     }
   };
 
@@ -115,6 +123,13 @@ export const GameLobby: React.FC<GameLobbyProps> = ({
             >
               Join Room
             </Button>
+            <Button
+              onClick={() => setMode('spectate')}
+              className="w-full bg-gray-600 hover:bg-gray-700"
+              size="lg"
+            >
+              Watch Game (Spectator)
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -127,20 +142,22 @@ export const GameLobby: React.FC<GameLobbyProps> = ({
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
-            {mode === 'create' ? 'Create Room' : 'Join Room'}
+            {mode === 'create' ? 'Create Room' : mode === 'spectate' ? 'Watch Game' : 'Join Room'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Your Name</label>
-            <Input
-              type="text"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Enter your name"
-              maxLength={20}
-            />
-          </div>
+          {mode !== 'spectate' && (
+            <div>
+              <label className="block text-sm font-medium mb-2">Your Name</label>
+              <Input
+                type="text"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                placeholder="Enter your name"
+                maxLength={20}
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium mb-2">Room ID</label>
@@ -173,11 +190,15 @@ export const GameLobby: React.FC<GameLobbyProps> = ({
               Back
             </Button>
             <Button
-              onClick={mode === 'create' ? handleCreateRoom : handleJoinRoom}
+              onClick={
+                mode === 'create' ? handleCreateRoom : 
+                mode === 'spectate' ? handleJoinAsSpectator : 
+                handleJoinRoom
+              }
               className="flex-1 bg-green-600 hover:bg-green-700"
-              disabled={!playerName.trim() || !roomId.trim()}
+              disabled={mode === 'spectate' ? !roomId.trim() : (!playerName.trim() || !roomId.trim())}
             >
-              {mode === 'create' ? 'Create' : 'Join'}
+              {mode === 'create' ? 'Create' : mode === 'spectate' ? 'Watch' : 'Join'}
             </Button>
           </div>
         </CardContent>

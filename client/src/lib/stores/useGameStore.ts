@@ -2,12 +2,22 @@ import { create } from 'zustand';
 import { GameState, UnoCard, CardColor } from '@/types/game';
 import { socketService } from '@/lib/socket';
 
+export interface ChatMessage {
+  playerId: string;
+  playerName: string;
+  message: string;
+  timestamp: number;
+}
+
 interface GameStore {
   gameState: GameState | null;
   currentRoomId: string | null;
   playerName: string | null;
   isConnected: boolean;
   error: string | null;
+  chatMessages: ChatMessage[];
+  isSpectator: boolean;
+  spectatorCount: number;
   
   // Actions
   setGameState: (state: GameState) => void;
@@ -15,14 +25,20 @@ interface GameStore {
   setPlayerName: (name: string) => void;
   setConnected: (connected: boolean) => void;
   setError: (error: string | null) => void;
+  addChatMessage: (message: ChatMessage) => void;
+  clearChatMessages: () => void;
+  setIsSpectator: (isSpectator: boolean) => void;
+  setSpectatorCount: (count: number) => void;
   
   // Game actions
   createRoom: (playerName: string, roomId: string) => void;
   joinRoom: (playerName: string, roomId: string) => void;
+  joinAsSpectator: (roomId: string) => void;
   startGame: () => void;
   playCard: (cardId: string, chosenColor?: CardColor) => void;
   drawCard: () => void;
   callUno: () => void;
+  sendChatMessage: (message: string) => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -31,12 +47,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
   playerName: null,
   isConnected: false,
   error: null,
+  chatMessages: [],
+  isSpectator: false,
+  spectatorCount: 0,
 
   setGameState: (state) => set({ gameState: state }),
   setCurrentRoomId: (roomId) => set({ currentRoomId: roomId }),
   setPlayerName: (name) => set({ playerName: name }),
   setConnected: (connected) => set({ isConnected: connected }),
   setError: (error) => set({ error }),
+  addChatMessage: (message) => set((state) => ({ 
+    chatMessages: [...state.chatMessages, message] 
+  })),
+  clearChatMessages: () => set({ chatMessages: [] }),
+  setIsSpectator: (isSpectator) => set({ isSpectator }),
+  setSpectatorCount: (count) => set({ spectatorCount: count }),
 
   createRoom: (playerName, roomId) => {
     const socket = socketService.getSocket();
@@ -83,6 +108,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const socket = socketService.getSocket();
     if (socket && currentRoomId) {
       socket.emit('call_uno', { roomId: currentRoomId });
+    }
+  },
+
+  sendChatMessage: (message) => {
+    const { currentRoomId } = get();
+    const socket = socketService.getSocket();
+    if (socket && currentRoomId && message.trim()) {
+      socket.emit('send_chat_message', { roomId: currentRoomId, message });
+    }
+  },
+
+  joinAsSpectator: (roomId) => {
+    const socket = socketService.getSocket();
+    if (socket) {
+      set({ isSpectator: true });
+      socket.emit('join_as_spectator', { roomId });
     }
   },
 }));

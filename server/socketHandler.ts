@@ -4,6 +4,7 @@ import { UnoGame, CardColor } from "./gameLogic";
 interface GameRoom {
   game: UnoGame;
   players: Set<string>;
+  spectators: Set<string>;
 }
 
 const gameRooms = new Map<string, GameRoom>();
@@ -22,7 +23,8 @@ export function setupSocketHandlers(io: SocketIOServer): void {
         const game = new UnoGame(roomId);
         const room: GameRoom = {
           game,
-          players: new Set([socket.id])
+          players: new Set([socket.id]),
+          spectators: new Set()
         };
 
         if (!game.addPlayer(socket.id, playerName)) {
@@ -199,10 +201,73 @@ export function setupSocketHandlers(io: SocketIOServer): void {
       }
     });
 
+    socket.on("send_chat_message", ({ roomId, message }) => {
+      try {
+        const room = gameRooms.get(roomId);
+        if (!room) {
+          socket.emit("error", { message: "Room not found" });
+          return;
+        }
+
+        const gameState = room.game.getGameState();
+        const player = gameState.players.find(p => p.id === socket.id);
+        const isSpectator = room.spectators.has(socket.id);
+        
+        if (!player && !isSpectator) {
+          socket.emit("error", { message: "Not in room" });
+          return;
+        }
+
+        // Broadcast chat message to all players and spectators in the room
+        io.to(roomId).emit("chat_message", {
+          playerId: socket.id,
+          playerName: player?.name || "Spectator",
+          message: message.trim(),
+          timestamp: Date.now()
+        });
+      } catch (error) {
+        socket.emit("error", { message: "Failed to send chat message" });
+      }
+    });
+
+    socket.on("join_as_spectator", ({ roomId }) => {
+      try {
+        const room = gameRooms.get(roomId);
+        if (!room) {
+          socket.emit("error", { message: "Room not found" });
+          return;
+        }
+
+        room.spectators.add(socket.id);
+        socket.join(roomId);
+
+        // Send current game state to spectator (without revealing hands)
+        const spectatorGameState = {
+          ...room.game.getGameState(),
+          players: room.game.getGameState().players.map(p => ({
+            ...p,
+            hand: [] // Hide cards from spectators
+          }))
+        };
+
+        socket.emit("spectator_joined", { 
+          roomId, 
+          gameState: spectatorGameState 
+        });
+
+        // Notify others that a spectator joined
+        io.to(roomId).emit("spectator_update", { 
+          spectatorCount: room.spectators.size 
+        });
+      } catch (error) {
+        socket.emit("error", { message: "Failed to join as spectator" });
+      }
+    });
+
     socket.on("disconnect", () => {
       console.log(`Player disconnected: ${socket.id}`);
       
-      // Remove player from all rooms
+      // Remove player/spectator from all rooms
       gameRooms.forEach((room, roomId) => {
         if (room.players.has(socket.id)) {
           room.players.delete(socket.id);
@@ -221,6 +286,13 @@ export function setupSocketHandlers(io: SocketIOServer): void {
               }
             });
           }
+        }
+
+        if (room.spectators.has(socket.id)) {
+          room.spectators.delete(socket.id);
+          io.to(roomId).emit("spectator_update", { 
+            spectatorCount: room.spectators.size 
+          });
         }
       });
     });

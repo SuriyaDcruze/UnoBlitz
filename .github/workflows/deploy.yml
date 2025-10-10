@@ -10,49 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repo
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # 2️⃣ Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      # 3️⃣ Install dependencies
       - name: Install Dependencies
         run: npm install
 
-      # 4️⃣ Build TypeScript
       - name: Build TypeScript
         run: npm run build
 
-      # 5️⃣ Setup SSH agent
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      # 6️⃣ Deploy to EC2
       - name: Deploy to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ec2-user@3.110.50.12 "
-            # Navigate or clone repo
-            cd /home/ec2-user/UnoBlitz || git clone https://github.com/SuriyaDcruze/UnoBlitz.git /home/ec2-user/UnoBlitz
-
-            cd /home/ec2-user/UnoBlitz
-            git pull
-
-            # Install dependencies and build
-            npm install
-            npm run build
-
-            # Set environment variables
-            export DATABASE_URL='postgresql://myuser:mypassword@xyz.neon.tech:5432/mydb'
-
-            # Start or restart PM2 process
-            pm2 restart unoblitz || pm2 start dist/index.js --name unoblitz
-
-            # Save PM2 process list for auto-start on reboot
-            pm2
+          ssh -o StrictHostKeyChecking=no ec2-user@3.110.50.12 << 'EOF'
+          cd /home/ec2-user/UnoBlitz || git clone https://github.com/SuriyaDcruze/UnoBlitz.git /home/ec2-user/UnoBlitz
+          cd /home/ec2-user/UnoBlitz
+          git pull
+          npm install
+          npm run build
+          export DATABASE_URL='postgresql://myuser:mypassword@xyz.neon.tech:5432/mydb'
+          pm2 restart unoblitz || pm2 start dist/index.js --name unoblitz
+          pm2 save
+          EOF

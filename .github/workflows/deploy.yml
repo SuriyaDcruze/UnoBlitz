@@ -1,0 +1,41 @@
+name: CI/CD Pipeline for UnoBlitz
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.1
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ec2-user@3.110.50.12 "
+            cd /home/ec2-user/UnoBlitz || git clone https://github.com/SuriyaDcruze/UnoBlitz.git /home/ec2-user/UnoBlitz &&
+            cd /home/ec2-user/UnoBlitz &&
+            git pull &&
+            npm install &&
+            npm run build &&
+            pm2 restart unoblitz || pm2 start dist/index.js --name unoblitz
+          "
